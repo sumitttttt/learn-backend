@@ -22,8 +22,8 @@ app.get('/login', async function (req, res) {
 })
 
 app.get('/profile', isLoggedin, async function (req, res) {
-    // res.render("login")
-    res.send(req.user)
+    let user = await userModel.findOne({email:req.user.email}).populate("posts")
+    res.render("profile",{user})
 })
 
 app.post('/login', async function (req, res) {
@@ -37,7 +37,7 @@ app.post('/login', async function (req, res) {
         if(result){
             let token = jwt.sign({email,userid:user._id},"secret")
             res.cookie("token",token)
-            res.send("You can login")
+            res.redirect("/profile")
         } 
             else res.redirect("/login")
     });
@@ -75,12 +75,28 @@ app.get("/logout",function (req,res){
 })
 
 function isLoggedin(req,res,next){
-    if(req.cookies.token=="") res.send("not login")
+    if(req.cookies.token=="") res.redirect("/login")
     else{
         let data = jwt.verify(req.cookies.token,"secret")
         req.user=data
         next() 
     }
 }
+
+app.post('/post', isLoggedin, async function (req, res) {
+    let user = await userModel.findOne({email:req.user.email})
+
+    let post = await postModel.create({
+        user:user._id,
+        content:req.body.content
+    })
+
+
+    user.posts.push(post._id)
+    await user.save()
+
+    res.redirect("/profile")
+    // res.send({post,user})
+})
 
 app.listen(3000)
